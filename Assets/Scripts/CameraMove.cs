@@ -9,13 +9,18 @@ public class CameraMove : MonoBehaviour {
 
   float tunnelDistance = 0;
 
-  float qt = Mathf.PI / 2;
+  Quaternion startRotation;
+  Quaternion endRotation;
 
   void Awake() {
     tunnels.Clear();
     foreach (Tunnel tunnel in initialTunnels) {
       tunnels.Enqueue(tunnel);
     }
+
+    startRotation = transform.rotation;
+    endRotation = startRotation
+      * Quaternion.AngleAxis(90, tunnels.Peek().origin.rotation * Vector3.up);
   }
 
   void Update() {
@@ -29,6 +34,7 @@ public class CameraMove : MonoBehaviour {
       moveDistance -= tunnelDistanceRemaining;
       tunnels.Dequeue();
 
+      // Requeue the initial tunnels, assuming they are in a loop.
       if (tunnels.Count == 0) {
         foreach (Tunnel t in initialTunnels) {
           tunnels.Enqueue(t);
@@ -38,23 +44,22 @@ public class CameraMove : MonoBehaviour {
       tunnel = tunnels.Peek();
       tunnelDistance = 0;
       tunnelDistanceRemaining = tunnel.length;
+
+      startRotation = endRotation;
+      endRotation = Quaternion.AngleAxis(90, tunnel.origin.rotation * Vector3.up) * startRotation;
     }
 
     tunnelDistance += moveDistance;
     float tunnelPercent = tunnelDistance / tunnel.length;
 
     if (tunnel.radius == 0) {
-      transform.position = tunnel.start + (tunnel.end - tunnel.start) * tunnelPercent;
+      transform.position = Vector3.Lerp(tunnel.start.position, tunnel.end.position, tunnelPercent);
     }
     else {
-      transform.position = tunnel.origin + (tunnel.transform.rotation
-        * new Vector3(
-          Mathf.Cos(qt * tunnelPercent) * Mathf.Sign(tunnel.radius), 0,
-          Mathf.Sin(qt * tunnelPercent))
-        * Mathf.Abs(tunnel.radius));
-
-      transform.rotation = tunnel.transform.rotation
-        * Quaternion.AngleAxis(-90f * tunnelPercent * Mathf.Sign(tunnel.radius), Vector3.up);
+      transform.position = tunnel.start.position;
+      transform.rotation = startRotation;
+      transform.RotateAround(tunnel.origin.position, tunnel.origin.rotation * Vector3.up,
+        90 * tunnelPercent);
     }
   }
 }

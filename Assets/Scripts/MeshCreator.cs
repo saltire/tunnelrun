@@ -7,6 +7,13 @@ public enum MeshType {
   Keystone,
 };
 
+public enum CurveDirection {
+  Right,
+  Down,
+  Left,
+  Up,
+};
+
 [ExecuteInEditMode]
 public class MeshCreator : MonoBehaviour {
   public Transform creationPoint;
@@ -17,8 +24,16 @@ public class MeshCreator : MonoBehaviour {
   public int tunnelWidth = 4;
   public int tunnelLength = 5;
   public float tunnelRadius = 4;
+  public CurveDirection tunnelCurveDirection = CurveDirection.Right;
 
   CameraMove cameraMove;
+
+  Vector3[] curveAxes = new Vector3[] {
+    Vector3.up,
+    Vector3.right,
+    Vector3.down,
+    Vector3.left,
+  };
 
   void Awake() {
     cameraMove = FindObjectOfType<CameraMove>();
@@ -77,28 +92,25 @@ public class MeshCreator : MonoBehaviour {
     return mesh;
   }
 
-  Mesh CreateKeystone(Vector3 origin, int tLength, float iRadius) {
+  Mesh CreateKeystone(int tLength, float iRadius) {
     Mesh mesh = new Mesh();
     List<Vector3> vertices = new List<Vector3>();
     List<Vector2> uvs = new List<Vector2>();
     List<int> triangles = new List<int>();
 
-    bool curveRight = iRadius < 0;
-
-    Quaternion rotation = Quaternion.AngleAxis(90f / tLength,
-      curveRight ? Vector3.up : Vector3.down);
+    Quaternion rotation = Quaternion.AngleAxis(90f / tLength, Vector3.up);
 
     // Points on a quad relative to the origin point.
-    Vector3 pBackInner = Vector3.right * iRadius;
-    Vector3 pBackOuter = Vector3.right * (iRadius + Mathf.Sign(iRadius));
+    Vector3 pBackInner = Vector3.left * iRadius;
+    Vector3 pBackOuter = Vector3.left * (iRadius + 1);
     Vector3 pForwardOuter = rotation * pBackOuter;
     Vector3 pForwardInner = rotation * pBackInner;
 
     // Arrange the points clockwise starting at back left.
-    Vector3 point1 = curveRight ? pBackOuter : pBackInner;
-    Vector3 point2 = curveRight ? pForwardOuter : pForwardInner;
-    Vector3 point3 = curveRight ? pForwardInner : pForwardOuter;
-    Vector3 point4 = curveRight ? pBackInner : pBackOuter;
+    Vector3 point1 = pBackOuter;
+    Vector3 point2 = pForwardOuter;
+    Vector3 point3 = pForwardInner;
+    Vector3 point4 = pBackInner;
 
     Vector3 point1a = point1 + Vector3.up;
     Vector3 point2a = point2 + Vector3.up;
@@ -120,13 +132,13 @@ public class MeshCreator : MonoBehaviour {
     return mesh;
   }
 
-  public GameObject CreateMesh(MeshType type, Vector3 origin, int tLength, float iRadius) {
+  public GameObject CreateMesh(MeshType type, int tLength, float iRadius) {
     Mesh mesh;
     if (type == MeshType.Cube) {
       mesh = CreateCube();
     }
     else {
-      mesh = CreateKeystone(origin, tLength, iRadius);
+      mesh = CreateKeystone(tLength, iRadius);
     }
 
     GameObject gameObject = new GameObject(type.ToString(),
@@ -139,7 +151,15 @@ public class MeshCreator : MonoBehaviour {
   }
 
   public GameObject CreateMesh() {
-    return CreateMesh(meshType, Vector3.zero, tunnelLength, tunnelRadius);
+    return CreateMesh(meshType, tunnelLength, tunnelRadius);
+  }
+
+  public Transform AddPoint(Tunnel tunnel, string name, Vector3 position, Quaternion rotation) {
+    GameObject point = new GameObject(name);
+    point.transform.position = position;
+    point.transform.rotation = rotation;
+    point.transform.parent = tunnel.transform;
+    return point.transform;
   }
 
   public Tunnel CreateStraightTunnel(int width, int length) {
@@ -149,6 +169,9 @@ public class MeshCreator : MonoBehaviour {
     tunnel.width = width;
     tunnel.length = length;
     tunnel.radius = 0;
+
+    tunnel.start = AddPoint(tunnel, "Start", Vector3.zero, Quaternion.identity);
+    tunnel.end = AddPoint(tunnel, "End", Vector3.forward * length, Quaternion.identity);
 
     float halfWidth = width / 2f;
 
@@ -168,38 +191,37 @@ public class MeshCreator : MonoBehaviour {
     tunnel.transform.position = creationPoint.position;
     tunnel.transform.rotation = creationPoint.rotation;
 
-    tunnel.start = creationPoint.position;
     creationPoint.position += creationPoint.rotation * Vector3.forward * length;
-    tunnel.end = creationPoint.position;
 
     return tunnel;
   }
 
-  public Tunnel CreateCurvedTunnel(int width, int length, float radius) {
-    Tunnel tunnel = new GameObject($"Curved Tunnel {length} {radius}", typeof(Tunnel))
+  public Tunnel CreateCurvedTunnel(int width, int length, float radius, CurveDirection curveDir) {
+    Tunnel tunnel = new GameObject($"Curved Tunnel {length} {radius} {curveDir}", typeof(Tunnel))
       .GetComponent<Tunnel>();
     tunnel.transform.parent = transform;
     tunnel.width = width;
     tunnel.length = length;
     tunnel.radius = radius;
 
-    Vector3 origin = Vector3.right * radius;
+    tunnel.origin = AddPoint(tunnel, "Origin", Vector3.zero, Quaternion.identity);
+    tunnel.start = AddPoint(tunnel, "Start", Vector3.left * radius, Quaternion.identity);
+    tunnel.end = AddPoint(tunnel, "End", Vector3.forward * radius,
+      Quaternion.AngleAxis(90, Vector3.up));
+
     float halfWidth = width / 2f;
-    float innerWall = Mathf.Abs(radius) - halfWidth - 1;
-    float outerWall = Mathf.Abs(radius) + halfWidth;
+    float innerWall = radius - halfWidth - 1;
+    float outerWall = radius + halfWidth;
 
-    for (float ar = innerWall; ar <= outerWall; ar++) {
-      float r = ar * Mathf.Sign(radius);
-
-      if (ar == innerWall || ar == outerWall) {
+    for (float r = innerWall; r <= outerWall; r++) {
+      if (r == innerWall || r == outerWall) {
         // Create walls
-        GameObject keystone = CreateMesh(MeshType.Keystone, origin, length, r);
+        GameObject keystone = CreateMesh(MeshType.Keystone, length, r);
         keystone.transform.position = Vector3.down * halfWidth;
         keystone.transform.parent = tunnel.transform;
 
         for (int z = 0; z < length; z++) {
-          Quaternion rotation = Quaternion.AngleAxis(90f / length * z,
-            radius > 0 ? Vector3.down : Vector3.up);
+          Quaternion rotation = Quaternion.AngleAxis(90f / length * z, Vector3.up);
 
           for (int y = 0; y < width; y++) {
             if (z > 0 || y > 0) {
@@ -210,7 +232,7 @@ public class MeshCreator : MonoBehaviour {
       }
       else {
         // Create floor/ceiling
-        GameObject floor = CreateMesh(MeshType.Keystone, origin, length, r);
+        GameObject floor = CreateMesh(MeshType.Keystone, length, r);
         floor.transform.position = Vector3.down * (halfWidth + 1);
         floor.transform.parent = tunnel.transform;
 
@@ -218,8 +240,7 @@ public class MeshCreator : MonoBehaviour {
           floor, Vector3.up * halfWidth, Quaternion.identity, tunnel.transform);
 
         for (int z = 1; z < length; z++) {
-          Quaternion rotation = Quaternion.AngleAxis(90f / length * z,
-            radius > 0 ? Vector3.down : Vector3.up);
+          Quaternion rotation = Quaternion.AngleAxis(90f / length * z, Vector3.up);
 
           Instantiate(floor, floor.transform.position, rotation, tunnel.transform);
           Instantiate(ceiling, ceiling.transform.position, rotation, tunnel.transform);
@@ -227,23 +248,25 @@ public class MeshCreator : MonoBehaviour {
       }
     }
 
-    tunnel.origin = creationPoint.position - creationPoint.rotation * origin;
-    tunnel.transform.position = tunnel.origin;
-    tunnel.transform.rotation *= creationPoint.rotation;
+    Quaternion tunnelRotation = Quaternion.AngleAxis(90 * (int)curveDir, Vector3.back);
+    Quaternion cameraRotation = Quaternion.AngleAxis(90, curveAxes[(int)curveDir]);
 
-    tunnel.start = creationPoint.position;
-    creationPoint.position += creationPoint.rotation
-      * (Vector3.forward * Mathf.Abs(radius) + Vector3.left * radius);
-    creationPoint.rotation *= Quaternion.AngleAxis(90, radius > 0 ? Vector3.down : Vector3.up);
-    tunnel.end = creationPoint.position;
+    tunnel.transform.position = creationPoint.position
+      + creationPoint.rotation * Vector3.right * radius;
+    tunnel.transform.rotation *= creationPoint.rotation;
+    tunnel.transform.RotateAround(creationPoint.position, creationPoint.rotation * Vector3.back,
+      90 * (int)curveDir);
+
+    creationPoint.position = tunnel.end.position;
+    creationPoint.rotation *= cameraRotation;
 
     return tunnel;
   }
 
-  public Tunnel CreateTunnel(int width, int length, float radius) {
+  public Tunnel CreateTunnel(int width, int length, float radius, CurveDirection curveDir) {
     Tunnel tunnel = radius == 0
       ? CreateStraightTunnel(width, length)
-      : CreateCurvedTunnel(width, length, radius);
+      : CreateCurvedTunnel(width, length, radius, curveDir);
 
     cameraMove.initialTunnels.Add(tunnel);
     cameraMove.tunnels.Enqueue(tunnel);
@@ -252,7 +275,7 @@ public class MeshCreator : MonoBehaviour {
   }
 
   public Tunnel CreateTunnel() {
-    return CreateTunnel(tunnelWidth, tunnelLength, tunnelRadius);
+    return CreateTunnel(tunnelWidth, tunnelLength, tunnelRadius, tunnelCurveDirection);
   }
 
   public void Reset() {

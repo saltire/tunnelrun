@@ -23,14 +23,14 @@ public class CreateMesh : Editor {
     }
 
     if (GUILayout.Button("Build Loop")) {
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius);
-      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, mc.tunnelRadius, mc.tunnelCurveDirection);
+      mc.CreateTunnel(mc.tunnelWidth, mc.tunnelLength, 0, mc.tunnelCurveDirection);
     }
   }
 }

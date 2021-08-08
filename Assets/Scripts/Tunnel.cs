@@ -6,7 +6,7 @@ public class Tunnel : MonoBehaviour {
   public int width;
   public int length;
   public float radius;
-  public Vector3 start;
-  public Vector3 end;
-  public Vector3 origin;
+  public Transform start;
+  public Transform end;
+  public Transform origin;
 }

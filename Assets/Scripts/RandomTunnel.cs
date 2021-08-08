@@ -29,6 +29,8 @@ public class RandomTunnel : MonoBehaviour {
   }
 
   void AddRandomTunnels() {
+    // TODO: fix to use new curve direction system instead of +/- radius
+
     while (cameraMove.tunnels.Count < queueLength) {
       int radius = Random.Range(0f, 1f) > curveChance
         ? Random.Range(radiusRange.x, radiusRange.y) * curveDirection
@@ -41,7 +43,7 @@ public class RandomTunnel : MonoBehaviour {
         curveDirection *= -1;
       }
 
-      meshCreator.CreateTunnel(width, length, radius);
+      meshCreator.CreateTunnel(width, length, radius, CurveDirection.Right);
     }
   }
 }
